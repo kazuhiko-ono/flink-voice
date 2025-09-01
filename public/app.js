@@ -40,10 +40,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 録音開始ボタン
     recordBtn.addEventListener('click', async () => {
+        console.log('録音開始ボタンがクリックされました');
+        
         try {
+            // ブラウザサポート確認
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('このブラウザは音声録音に対応していません');
+            }
+            
+            console.log('音声録音を開始しています...');
             await audioRecorder.startRecording();
+            console.log('音声録音が開始されました');
+            
             if (speechRecognizer.recognition) {
                 speechRecognizer.start();
+                console.log('音声認識も開始されました');
             }
             
             recordBtn.disabled = true;
@@ -54,9 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('recordBtnText').textContent = '録音中...';
             recordBtn.classList.replace('bg-blue-500', 'bg-gray-400');
             recordBtn.classList.replace('hover:bg-blue-600', 'hover:bg-gray-400');
+            
+            showSuccess('録音を開始しました');
         } catch (error) {
-            showError('マイクへのアクセスに失敗しました。ブラウザの設定を確認してください。');
-            console.error(error);
+            console.error('録音エラー:', error);
+            showError('マイクへのアクセスに失敗しました: ' + error.message);
         }
     });
 
@@ -137,14 +150,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 解析ボタン
     analyzeBtn.addEventListener('click', async () => {
+        console.log('解析ボタンがクリックされました');
+        
         const text = textInput.value.trim();
+        console.log('入力テキスト:', text);
         
         if (!text) {
             showError('テキストを入力してください');
             return;
         }
         
-        if (!claudeAPI.getApiKey()) {
+        const apiKey = claudeAPI.getApiKey();
+        console.log('APIキーの状態:', apiKey ? 'あり' : 'なし');
+        
+        if (!apiKey) {
             showApiKeyPrompt();
             if (!claudeAPI.getApiKey()) {
                 return;
@@ -152,18 +171,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
+            console.log('日報生成を開始します...');
             showLoading(true);
             hideError();
             
             const report = await claudeAPI.structureReport(text);
+            console.log('生成された日報:', report);
+            
             displayReport(report);
             
             showLoading(false);
             showSuccess('日報が生成されました');
         } catch (error) {
+            console.error('日報生成エラー:', error);
             showLoading(false);
             showError('日報の生成に失敗しました: ' + error.message);
-            console.error(error);
         }
     });
 

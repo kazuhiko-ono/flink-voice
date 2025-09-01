@@ -13,21 +13,43 @@ class AudioRecorder {
     // 録音開始
     async startRecording() {
         try {
+            console.log('マイクアクセスを要求中...');
+            
             // マイクへのアクセスを要求
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            
+            console.log('マイクアクセス許可されました');
             
             // MediaRecorderの設定
-            const options = { mimeType: 'audio/webm' };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                console.warn('audio/webm is not supported, trying audio/ogg');
+            let options = {};
+            
+            // 対応フォーマットを確認
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                options.mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options.mimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                options.mimeType = 'audio/ogg;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
                 options.mimeType = 'audio/ogg';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options.mimeType = 'audio/mp4';
             }
+            
+            console.log('使用する音声フォーマット:', options.mimeType);
             
             this.mediaRecorder = new MediaRecorder(this.stream, options);
             this.audioChunks = [];
             
             // データが利用可能になったときのハンドラ
             this.mediaRecorder.ondataavailable = (event) => {
+                console.log('音声データ受信:', event.data.size);
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
                 }
@@ -35,19 +57,36 @@ class AudioRecorder {
             
             // 録音停止時のハンドラ
             this.mediaRecorder.onstop = () => {
+                console.log('録音停止イベント');
                 this.onRecordingStopped();
             };
             
+            // エラーハンドラ
+            this.mediaRecorder.onerror = (event) => {
+                console.error('MediaRecorder エラー:', event.error);
+            };
+            
             // 録音開始
-            this.mediaRecorder.start();
+            console.log('録音を開始します...');
+            this.mediaRecorder.start(100); // 100ms間隔でデータを収集
             this.isRecording = true;
             this.startTime = Date.now();
             this.startTimer();
             
+            console.log('録音が開始されました');
             return true;
         } catch (error) {
             console.error('録音開始エラー:', error);
-            throw error;
+            
+            if (error.name === 'NotAllowedError') {
+                throw new Error('マイクへのアクセスが拒否されました。ブラウザの設定でマイクの使用を許可してください。');
+            } else if (error.name === 'NotFoundError') {
+                throw new Error('マイクが見つかりません。マイクが接続されていることを確認してください。');
+            } else if (error.name === 'NotSupportedError') {
+                throw new Error('このブラウザは音声録音をサポートしていません。');
+            } else {
+                throw error;
+            }
         }
     }
 
