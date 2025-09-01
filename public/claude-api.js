@@ -126,17 +126,50 @@ ${text}
     mockStructureReport(text) {
         console.log('モック実装を使用してテスト日報を生成');
         
-        // シンプルなキーワード抽出
-        const siteMatch = text.match(/([\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:ビル|現場|建物|マンション))/);
-        const staffMatch = text.match(/(山田|田中|佐藤|鈴木|高橋|[\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:さん)?)/);
+        // より詳細なキーワード抽出と文脈解析
+        const sentences = text.split(/[。．\n]/);
+        
+        // 現場名の抽出
+        const siteMatch = text.match(/([\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:ビル|現場|建物|マンション|アパート|店舗|事務所|工場))/);
+        
+        // 担当者の抽出
+        const staffMatch = text.match(/(山田|田中|佐藤|鈴木|高橋|渡辺|伊藤|中村|小林|加藤|吉田|[\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:さん|君|氏))/);
+        
+        // 本日の業務内容の抽出（作業関連キーワード）
+        const workKeywords = ['設置', '取付', '撤去', '点検', '清掃', '修理', '試運転', '配管', '接続', '配線', '調整', '確認', '完了', '実施'];
+        const todaysWork = sentences.filter(sentence => 
+            workKeywords.some(keyword => sentence.includes(keyword)) ||
+            sentence.includes('エアコン') || sentence.includes('室外機') || sentence.includes('室内機')
+        ).join('。') || text.substring(0, 100);
+        
+        // 問題点・懸念の抽出
+        const issueKeywords = ['問題', 'トラブル', 'エラー', '不具合', '故障', '漏れ', '異音', '異常', '心配', '懸念', '気になる', 'うまくいかない', '困った', '失敗'];
+        const issuesSentences = sentences.filter(sentence => 
+            issueKeywords.some(keyword => sentence.includes(keyword))
+        );
+        const issues = issuesSentences.length > 0 ? issuesSentences.join('。') : '特になし';
+        
+        // 明日の予定の抽出
+        const tomorrowKeywords = ['明日', '次回', '来週', '後日', '今度', '次の', '翌日'];
+        const planKeywords = ['予定', '計画', 'やる', '行う', '実施', '作業', '工事', '設置', '取付', '点検', '予約'];
+        const tomorrowSentences = sentences.filter(sentence => 
+            tomorrowKeywords.some(keyword => sentence.includes(keyword)) ||
+            (sentence.includes('予定') || sentence.includes('計画'))
+        );
+        
+        let tomorrowPlan = '未記載';
+        if (tomorrowSentences.length > 0) {
+            tomorrowPlan = tomorrowSentences.join('。');
+        } else if (text.includes('続き') || text.includes('継続')) {
+            tomorrowPlan = '本日の作業の続きを実施予定';
+        }
         
         return {
             site: siteMatch ? siteMatch[1] : '未記載',
             staff: staffMatch ? staffMatch[1] : '未記載',
-            todaysWork: text.length > 50 ? text.substring(0, 100) + '...' : text,
-            issues: text.includes('問題') || text.includes('トラブル') || text.includes('エラー') ? 
-                '入力テキストに問題の記述があります' : '特になし',
-            tomorrowPlan: '明日の予定は未記載'
+            todaysWork: todaysWork || '未記載',
+            issues: issues,
+            tomorrowPlan: tomorrowPlan
         };
     }
 
