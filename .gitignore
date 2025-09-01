@@ -1,0 +1,5 @@
+# macOS 特有のファイルを除外
+.DS_Store
+
+# Claude Code用（このフォルダを作って、渡したいファイル置き場にしてね！）
+/claude-tmp/
