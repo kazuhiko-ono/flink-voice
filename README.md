@@ -1,82 +1,107 @@
-# Claude Code Development Container
+# 空調工事業務日報自動生成アプリ
 
-非エンジニア向けの **Claude Code 実行環境** です。GitHub Codespaces で、ワンクリックで Claude Code を使った Web 開発・Python 開発を始められます。
+空調工事会社エフリンクの業務日報を音声入力またはテキスト入力から自動生成するWebアプリケーションです。
 
-*created by Claude Sonnet 4*
+## 機能
 
-## 🚀 すぐに始める
+### Phase 1 (実装済み)
+- 🎤 音声録音機能（Web Audio API）
+- 📝 テキスト入力機能
+- 🤖 Claude APIによる自動構造化
+- ✏️ 生成された日報の編集機能
+- 📋 クリップボードへのコピー機能
+- 💾 ローカルストレージへの保存機能
 
-### 1. このテンプレートを使用
+## セットアップ
 
-1. 右上の緑のボタン **「Use this template」** をクリック
-2. **「Create a new repository」** を選択
-3. リポジトリ名と説明を入力（Private 推奨）
-4. **「Create repository」** をクリック
+### 1. Claude APIキーの取得
+1. [Anthropic Console](https://console.anthropic.com/)にアクセス
+2. APIキーを生成
+3. アプリ初回起動時にAPIキーを入力
 
-### 2. Codespace を起動
+### 2. ローカルでの実行
+```bash
+# シンプルなHTTPサーバーで実行
+python3 -m http.server 8000 --directory public
+# または
+npx serve public
+```
 
-1. 作成したリポジトリのページで **「Code」** ボタンをクリック
-2. **「Codespaces」** タブを選択
-3. **「Create codespace on main」** をクリック
+ブラウザで http://localhost:8000 にアクセス
 
-数分でセットアップが完了します ⏱️
+### 3. Netlifyへのデプロイ
 
-## 🌟 デフォルトイメージの利点
+#### 方法1: GitHubとの連携
+1. このリポジトリをGitHubにプッシュ
+2. Netlifyでサイトを作成し、GitHubリポジトリと連携
+3. ビルド設定は自動的に`netlify.toml`から読み込まれます
 
-この環境は **GitHub Codespaces のデフォルトイメージ** を使用しています：
+#### 方法2: 手動デプロイ
+```bash
+# Netlify CLIをインストール
+npm install -g netlify-cli
 
-- ✅ **使用容量がカウントされない** - 無料枠を節約！
-- ⚡ **起動が高速** - カスタムイメージより早くスタート
-- 🛠️ **必要なツールが標準装備** - Node.js、Python、Gitが最初から利用可能
-- 🔧 **軽量セットアップ** - 必要最小限のパッケージのみインストール
+# デプロイ
+netlify deploy --dir=public --prod
+```
 
-> 💰 **重要**: デフォルトイメージを使用することで、GitHub Codespaces の無料枠（月60時間）を最大限活用できます！
+## 使い方
 
-> 💡 **ヒント**: Claude Code を本格的に使うなら、事前に **Claude Pro プラン**（月額$20）の契約をおすすめします。API利用料を気にせず開発に集中できます！
+### 音声入力
+1. 「録音開始」ボタンをクリック
+2. 業務内容を話す
+3. 「録音停止」ボタンをクリック
+4. 自動的にテキスト化されます（Web Speech API対応ブラウザのみ）
 
-## 💰 費用について
+### テキスト入力
+1. テキストエリアに直接業務内容を入力
+2. 例: 「今日は〇〇ビルで室外機の設置作業を行いました...」
 
-### GitHub Codespaces
-- **デフォルトイメージ使用**: 使用容量がカウントされない！
-- 個人アカウント：月60時間まで無料
-- それ以降：使用時間に応じて課金
+### 日報生成
+1. 「日報を生成」ボタンをクリック
+2. Claude APIが内容を解析し、以下の項目に自動分類：
+   - 工事現場名
+   - 担当者
+   - 本日の業務
+   - 問題点・懸念
+   - 明日の予定業務
 
-### Claude API（2025年6月更新！）
+### 編集と保存
+- 生成された各項目はクリックして直接編集可能
+- 「コピー」ボタンでクリップボードにコピー
+- 「保存」ボタンでローカルストレージに保存
 
-#### 🌟 Claude Pro プラン（推奨）
-- **月額 $20**
-- **API利用料込み** - 追加料金なし！
-- Claude Code を思い切り使えます
-- Web版 Claude も優先アクセス・高品質
+## 対応ブラウザ
+- Chrome (推奨)
+- Edge
+- Safari
+- Firefox
 
-#### 従量課金プラン
-- 使用量に応じて課金
-- 少量使用なら安価ですが、たくさん使うとClaude Proの方がお得
+※音声認識機能はChrome/Edgeで最適に動作します
 
-**💡 おすすめ**: 本格的にClaude Codeを使うなら **Claude Pro プラン** が断然お得です！
+## 技術スタック
+- Vanilla JavaScript
+- Tailwind CSS (CDN)
+- Web Audio API
+- Web Speech API
+- Claude API (Anthropic)
 
-## 📂 この環境に含まれるツール
+## 空調工事専門用語
+アプリは以下の専門用語を正確に認識します：
+- **機器**: エアコン、室外機、室内機、ダクト、配管、冷媒、コンプレッサー
+- **作業**: 取付、撤去、点検、清掃、修理、試運転、配管接続、電気配線
+- **材料**: 冷媒配管、断熱材、ドレンホース、電気配線、架台、ブラケット
 
-### 標準装備（デフォルトイメージ）
-- **Node.js** - JavaScript実行環境
-- **Python** - Python実行環境  
-- **Git** - バージョン管理
-- **基本的な開発ツール** - curl、wget、etc.
+## トラブルシューティング
 
-### 追加インストール（軽量）
-- **Claude Code** - メイン機能
-- **Live Server** - リアルタイムプレビュー付きWebサーバー
-- **Prettier** - コード整形ツール
-- **requests** (Python) - HTTP通信
-- **flask** (Python) - Webアプリケーション開発
+### 音声認識が動作しない
+- Chrome/Edgeブラウザを使用してください
+- マイクの許可を確認してください
+- HTTPSまたはlocalhostでアクセスしてください
 
-### VS Code 拡張機能（厳選）
-- Claude Code 公式拡張機能
-- Live Server（Webプレビュー）
-- Tailwind CSS IntelliSense
-- 日本語言語パック
-- VS Code Icons
+### APIキーエラー
+- 正しいClaude APIキーを入力してください
+- APIキーの使用制限を確認してください
 
----
-
-**Claude Code で、あなたのアイデアを形にしてみてください！** 🤖✨
+## ライセンス
+エフリンク専用アプリケーション

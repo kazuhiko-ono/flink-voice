@@ -1,0 +1,21 @@
+# Netlify設定ファイル
+
+[build]
+  publish = "public"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"
+    Permissions-Policy = "microphone=(self)"
+
+# CORS設定（Claude APIへのアクセス用）
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, x-api-key, anthropic-version"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"

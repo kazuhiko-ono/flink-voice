@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空調工事業務日報 - エフリンク</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- ヘッダー -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">空調工事業務日報</h1>
+            <p class="text-gray-600">音声入力で簡単に日報を作成</p>
+        </header>
+
+        <!-- 音声入力セクション -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">音声入力</h2>
+            
+            <!-- 録音ボタン -->
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <button id="recordBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center gap-2">
+                    <svg id="recordIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                    <span id="recordBtnText">録音開始</span>
+                </button>
+                
+                <button id="stopBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+                    </svg>
+                    録音停止
+                </button>
+            </div>
+
+            <!-- 録音時間表示 -->
+            <div id="recordingStatus" class="hidden mb-4">
+                <div class="flex items-center gap-2 text-red-600">
+                    <div class="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                    <span>録音中...</span>
+                    <span id="recordingTime">00:00</span>
+                </div>
+            </div>
+
+            <!-- 音声ファイルアップロード -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input type="file" id="audioFileInput" accept="audio/*,.mp3,.wav,.m4a" class="hidden">
+                <label for="audioFileInput" class="cursor-pointer">
+                    <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="text-gray-600">音声ファイルをドラッグ&ドロップ</p>
+                    <p class="text-sm text-gray-500 mt-1">または クリックして選択</p>
+                    <p class="text-xs text-gray-400 mt-2">対応形式: MP3, WAV, M4A</p>
+                </label>
+            </div>
+
+            <!-- 音声プレビュー -->
+            <div id="audioPreview" class="hidden mt-4">
+                <audio id="audioPlayer" controls class="w-full"></audio>
+            </div>
+        </div>
+
+        <!-- テキスト入力セクション（音声認識が使えない場合の代替） -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">テキスト入力（音声の代わりに）</h2>
+            <textarea id="textInput" 
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      rows="5" 
+                      placeholder="例：今日は〇〇ビルで室外機の設置作業を行いました。担当は山田です。配管接続と電気配線を完了し、試運転も問題ありませんでした。明日は2階の室内機設置を予定しています。"></textarea>
+        </div>
+
+        <!-- 解析ボタン -->
+        <div class="text-center mb-6">
+            <button id="analyzeBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span class="flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    日報を生成
+                </span>
+            </button>
+        </div>
+
+        <!-- ローディング表示 -->
+        <div id="loadingIndicator" class="hidden">
+            <div class="flex justify-center items-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+            <p class="text-center text-gray-600">日報を生成中...</p>
+        </div>
+
+        <!-- 日報表示セクション -->
+        <div id="reportSection" class="hidden bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">生成された日報</h2>
+            
+            <div class="space-y-4">
+                <div class="border-b pb-3">
+                    <label class="font-semibold text-gray-600">工事現場名：</label>
+                    <div contenteditable="true" class="inline-block min-w-[200px] p-1 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded" id="reportSite"></div>
+                </div>
+                
+                <div class="border-b pb-3">
+                    <label class="font-semibold text-gray-600">担当者：</label>
+                    <div contenteditable="true" class="inline-block min-w-[200px] p-1 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded" id="reportStaff"></div>
+                </div>
+                
+                <div class="border-b pb-3">
+                    <label class="font-semibold text-gray-600">本日の業務：</label>
+                    <div contenteditable="true" class="mt-2 p-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded" id="reportTodaysWork"></div>
+                </div>
+                
+                <div class="border-b pb-3">
+                    <label class="font-semibold text-gray-600">問題点・懸念：</label>
+                    <div contenteditable="true" class="mt-2 p-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded" id="reportIssues"></div>
+                </div>
+                
+                <div class="pb-3">
+                    <label class="font-semibold text-gray-600">明日の予定業務：</label>
+                    <div contenteditable="true" class="mt-2 p-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded" id="reportTomorrowPlan"></div>
+                </div>
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="flex gap-3 mt-6">
+                <button id="copyBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    コピー
+                </button>
+                <button id="saveBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    保存
+                </button>
+            </div>
+        </div>
+
+        <!-- エラー表示 -->
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+            <span class="block sm:inline" id="errorText"></span>
+        </div>
+    </div>
+
+    <!-- JavaScript読み込み -->
+    <script src="audio-recorder.js"></script>
+    <script src="claude-api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
