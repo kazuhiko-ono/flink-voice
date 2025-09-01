@@ -17,25 +17,106 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copyBtn');
     const saveBtn = document.getElementById('saveBtn');
 
-    // 初期化時にAPIキーをチェック
-    checkApiKey();
+    // 初期化時にデフォルトでテストモードを設定
+    initializeApp();
 
-    // APIキーの確認と設定
-    function checkApiKey() {
+    // アプリケーション初期化
+    function initializeApp() {
         const savedKey = claudeAPI.getApiKey();
         if (!savedKey) {
-            showApiKeyPrompt();
+            // デフォルトでテストモードを設定
+            claudeAPI.setApiKey('test-mode');
+            showInfo('テストモードで開始しました。実際のClaude APIを使用する場合は設定から変更できます。');
         }
+        
+        // 設定ボタンを追加
+        addSettingsButton();
     }
 
-    // APIキー入力プロンプト
-    function showApiKeyPrompt() {
-        const key = prompt('Claude APIキーを入力してください：\n\n※APIキーはhttps://console.anthropic.com/ から取得できます');
-        if (key) {
-            claudeAPI.setApiKey(key);
-        } else {
-            showError('APIキーが設定されていません。日報生成機能は使用できません。');
-        }
+    // 設定ボタンを追加
+    function addSettingsButton() {
+        const header = document.querySelector('header');
+        const settingsBtn = document.createElement('button');
+        settingsBtn.innerHTML = '⚙️ 設定';
+        settingsBtn.className = 'bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm';
+        settingsBtn.onclick = showSettingsModal;
+        header.appendChild(settingsBtn);
+    }
+
+    // 設定モーダル表示
+    function showSettingsModal() {
+        const currentKey = claudeAPI.getApiKey();
+        const isTestMode = currentKey === 'test-mode' || currentKey?.startsWith('test-');
+        
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-lg font-bold mb-4">設定</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">APIモード</label>
+                    <select id="apiMode" class="w-full p-2 border rounded">
+                        <option value="test" ${isTestMode ? 'selected' : ''}>テストモード（推奨）</option>
+                        <option value="real" ${!isTestMode ? 'selected' : ''}>実際のClaude API</option>
+                    </select>
+                </div>
+                <div id="apiKeySection" class="mb-4 ${isTestMode ? 'hidden' : ''}">
+                    <label class="block text-sm font-medium mb-2">Claude APIキー</label>
+                    <input type="password" id="apiKeyInput" class="w-full p-2 border rounded" 
+                           value="${!isTestMode ? currentKey : ''}" 
+                           placeholder="sk-ant-...">
+                    <p class="text-xs text-gray-500 mt-1">
+                        <a href="https://console.anthropic.com/" target="_blank" class="text-blue-500">
+                            console.anthropic.com
+                        </a>から取得
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="saveSettings()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                        保存
+                    </button>
+                    <button onclick="closeModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded">
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // APIモード変更時の表示制御
+        document.getElementById('apiMode').onchange = function() {
+            const apiKeySection = document.getElementById('apiKeySection');
+            if (this.value === 'test') {
+                apiKeySection.classList.add('hidden');
+            } else {
+                apiKeySection.classList.remove('hidden');
+            }
+        };
+        
+        // グローバル関数として設定
+        window.saveSettings = function() {
+            const mode = document.getElementById('apiMode').value;
+            const apiKey = document.getElementById('apiKeyInput').value;
+            
+            if (mode === 'test') {
+                claudeAPI.setApiKey('test-mode');
+                showSuccess('テストモードに設定しました');
+            } else {
+                if (!apiKey) {
+                    showError('APIキーを入力してください');
+                    return;
+                }
+                claudeAPI.setApiKey(apiKey);
+                showSuccess('Claude APIキーを設定しました');
+            }
+            closeModal();
+        };
+        
+        window.closeModal = function() {
+            modal.remove();
+            delete window.saveSettings;
+            delete window.closeModal;
+        };
     }
 
     // 録音開始ボタン
@@ -162,13 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const apiKey = claudeAPI.getApiKey();
         console.log('APIキーの状態:', apiKey ? 'あり' : 'なし');
-        
-        if (!apiKey) {
-            showApiKeyPrompt();
-            if (!claudeAPI.getApiKey()) {
-                return;
-            }
-        }
+        console.log('使用中のAPIキー:', apiKey);
         
         try {
             console.log('日報生成を開始します...');

@@ -32,32 +32,77 @@ class ClaudeAPI {
         console.log('Claude API呼び出し開始');
         console.log('テキスト:', text.substring(0, 100) + '...');
 
-        // まずはテスト用のモック実装を試す
-        if (apiKey === 'test' || apiKey.startsWith('test-')) {
+        // テスト用のモック実装を試す
+        if (apiKey === 'test' || apiKey === 'test-mode' || apiKey?.startsWith('test-')) {
             console.log('テストモードで実行');
             return this.mockStructureReport(text);
         }
 
-        const prompt = `以下の音声テキストを空調工事の業務日報として構造化してください。
-空調工事の専門用語（エアコン、室外機、室内機、ダクト、配管、冷媒、コンプレッサー、ドレンホース、断熱材、電気配線、架台、ブラケット等）を正確に認識し、
-作業内容（取付、撤去、点検、清掃、修理、試運転、配管接続、電気配線等）を適切に分類してください。
+        const prompt = `あなたは空調工事業界の業務日報作成の専門家です。以下の業務報告テキストを適切に分析し、5つの項目に正確に振り分けてください。
 
-音声テキスト：
+## 業務報告テキスト：
 ${text}
 
-以下のJSON形式で出力してください：
+## 分析ルール：
+
+### 1. 工事現場名 (site)
+- 「〇〇ビル」「〇〇マンション」「〇〇現場」「〇〇建物」「〇〇店舗」等の固有名詞
+- 住所や場所の情報も含む
+
+### 2. 担当者 (staff)
+- 人名（「山田さん」「田中氏」等）
+- 「担当：」「責任者：」「作業員：」の後に続く名前
+- 複数名いる場合はカンマ区切り
+
+### 3. 本日の業務内容 (todaysWork)
+- **実際に完了した作業のみ**
+- 作業キーワード：設置、取付、撤去、点検、清掃、修理、試運転、配管接続、電気配線、調整
+- 機器名：エアコン、室外機、室内機、ダクト、配管、冷媒等
+- **問題点や明日の予定は除外**
+
+### 4. 問題点・懸念事項 (issues)
+- 「問題」「トラブル」「エラー」「不具合」「故障」「異常」を含む内容
+- 「心配」「懸念」「気になる」等の懸念事項
+- 未完了の作業や遅延
+- **具体的な問題内容のみ抽出**
+
+### 5. 明日の予定業務 (tomorrowPlan)
+- 「明日」「次回」「来週」「後日」を含む予定
+- 「予定」「計画」を含む未来の作業
+- 継続作業や次回実施予定の内容
+
+## 例示：
+入力：「今日は山田ビルで室外機設置しました。配線に問題がありました。明日は室内機を予定しています。」
+出力：
 {
-  "site": "工事現場名",
-  "staff": "担当者名",
-  "todaysWork": "本日の業務内容",
-  "issues": "問題点・懸念事項",
-  "tomorrowPlan": "明日の予定業務"
+  "site": "山田ビル",
+  "staff": "未記載",
+  "todaysWork": "室外機設置しました",
+  "issues": "配線に問題がありました",
+  "tomorrowPlan": "明日は室内機を予定しています"
 }
 
-注意点：
-- 明確な情報がない項目は"未記載"としてください
-- 問題点がない場合は"特になし"としてください
-- 必ずJSON形式のみを出力してください`;
+## 分析手順：
+1. まず全体を読んで文脈を理解
+2. キーワードを特定（現場名、人名、作業内容、問題、予定）
+3. 時制を確認（過去形=完了、未来形=予定）
+4. 各項目に適切に振り分け
+
+## 出力形式：
+必ずJSON形式で出力してください：
+{
+  "site": "工事現場名または未記載",
+  "staff": "担当者名または未記載", 
+  "todaysWork": "完了した作業内容",
+  "issues": "問題点・懸念または特になし",
+  "tomorrowPlan": "明日の予定または未記載"
+}
+
+## 重要な注意点：
+- 各項目は重複させない（同じ内容を複数項目に入れない）
+- 推測や補完はしない（明記された内容のみ）
+- 曖昧な表現も正確に抽出する
+- JSON形式以外は一切出力しない`;
 
         try {
             console.log('Claude APIに送信中...');
@@ -127,7 +172,18 @@ ${text}
         console.log('モック実装を使用してテスト日報を生成');
         
         // より詳細なキーワード抽出と文脈解析
-        const sentences = text.split(/[。．\n]/);
+        console.log('解析対象テキスト:', text);
+        
+        // 文章を分割（句点、改行、ピリオドで分割し、空文字を除外）
+        // 句点がない場合は、キーワードベースで分割
+        let sentences;
+        if (text.includes('。') || text.includes('．') || text.includes('\n')) {
+            sentences = text.split(/[。．\.\n]/).filter(s => s.trim().length > 0);
+        } else {
+            // 句点がない場合は「問題点」「明日」などのキーワードで分割を試みる
+            sentences = [text]; // 全体を一つの文として扱い、キーワードベースで部分抽出
+        }
+        console.log('分割された文章:', sentences);
         
         // 現場名の抽出
         const siteMatch = text.match(/([\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:ビル|現場|建物|マンション|アパート|店舗|事務所|工場))/);
@@ -135,34 +191,108 @@ ${text}
         // 担当者の抽出
         const staffMatch = text.match(/(山田|田中|佐藤|鈴木|高橋|渡辺|伊藤|中村|小林|加藤|吉田|[\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+(?:さん|君|氏))/);
         
-        // 本日の業務内容の抽出（作業関連キーワード）
-        const workKeywords = ['設置', '取付', '撤去', '点検', '清掃', '修理', '試運転', '配管', '接続', '配線', '調整', '確認', '完了', '実施'];
-        const todaysWork = sentences.filter(sentence => 
-            workKeywords.some(keyword => sentence.includes(keyword)) ||
-            sentence.includes('エアコン') || sentence.includes('室外機') || sentence.includes('室内機')
-        ).join('。') || text.substring(0, 100);
+        // 問題点・懸念の抽出（正規表現で部分的に抽出）
+        const issueKeywords = ['問題点', '問題', 'トラブル', 'エラー', '不具合', '故障', '漏れ', '異音', '異常', '心配', '懸念', '気になる', 'うまくいかない', '困った', '失敗', '課題'];
+        let issues = '特になし';
         
-        // 問題点・懸念の抽出
-        const issueKeywords = ['問題', 'トラブル', 'エラー', '不具合', '故障', '漏れ', '異音', '異常', '心配', '懸念', '気になる', 'うまくいかない', '困った', '失敗'];
-        const issuesSentences = sentences.filter(sentence => 
-            issueKeywords.some(keyword => sentence.includes(keyword))
-        );
-        const issues = issuesSentences.length > 0 ? issuesSentences.join('。') : '特になし';
+        // 「問題点は〜」「問題は〜」のパターンを探す
+        const issuePatterns = [
+            /問題点は([^。]*[^明日]*)/,
+            /問題は([^。]*[^明日]*)/,
+            /トラブルは([^。]*[^明日]*)/,
+            /不具合は([^。]*[^明日]*)/
+        ];
         
-        // 明日の予定の抽出
-        const tomorrowKeywords = ['明日', '次回', '来週', '後日', '今度', '次の', '翌日'];
-        const planKeywords = ['予定', '計画', 'やる', '行う', '実施', '作業', '工事', '設置', '取付', '点検', '予約'];
-        const tomorrowSentences = sentences.filter(sentence => 
-            tomorrowKeywords.some(keyword => sentence.includes(keyword)) ||
-            (sentence.includes('予定') || sentence.includes('計画'))
-        );
-        
-        let tomorrowPlan = '未記載';
-        if (tomorrowSentences.length > 0) {
-            tomorrowPlan = tomorrowSentences.join('。');
-        } else if (text.includes('続き') || text.includes('継続')) {
-            tomorrowPlan = '本日の作業の続きを実施予定';
+        for (const pattern of issuePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                issues = match[1].trim();
+                console.log('正規表現で検出された問題点:', issues);
+                break;
+            }
         }
+        
+        // パターンマッチングで見つからない場合は、キーワードベース検索
+        if (issues === '特になし') {
+            const issuesSentences = sentences.filter(sentence => {
+                const hasIssueKeyword = issueKeywords.some(keyword => sentence.includes(keyword));
+                console.log(`文章「${sentence}」は問題キーワードを含む: ${hasIssueKeyword}`);
+                return hasIssueKeyword;
+            });
+            if (issuesSentences.length > 0) {
+                issues = issuesSentences.join('。');
+            }
+        }
+        console.log('最終的な問題点:', issues);
+        
+        // 明日の予定の抽出（正規表現で部分的に抽出）
+        let tomorrowPlan = '未記載';
+        
+        // 「明日の業務は〜」「明日の業務に関しては〜」のパターンを探す
+        const tomorrowPatterns = [
+            /明日の業務は([^今日]*)/,
+            /明日の業務に関しては([^今日]*)/,
+            /明日の予定は([^今日]*)/,
+            /明日の作業は([^今日]*)/,
+            /明日は([^今日]*)/
+        ];
+        
+        for (const pattern of tomorrowPatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                tomorrowPlan = match[1].trim();
+                console.log('正規表現で検出された明日の予定:', tomorrowPlan);
+                break;
+            }
+        }
+        
+        // パターンマッチングで見つからない場合は、キーワードベース検索
+        if (tomorrowPlan === '未記載') {
+            const tomorrowKeywords = ['明日の業務', '明日の予定', '明日の作業', '明日', '次回', '来週', '後日', '今度', '次の', '翌日'];
+            const tomorrowSentences = sentences.filter(sentence => {
+                const hasTomorrowKeyword = tomorrowKeywords.some(keyword => sentence.includes(keyword)) ||
+                                          (sentence.includes('予定') && !sentence.includes('今日')) ||
+                                          (sentence.includes('計画') && !sentence.includes('今日'));
+                console.log(`文章「${sentence}」は明日キーワードを含む: ${hasTomorrowKeyword}`);
+                return hasTomorrowKeyword;
+            });
+            
+            if (tomorrowSentences.length > 0) {
+                tomorrowPlan = tomorrowSentences.join('。');
+            } else if (text.includes('続き') || text.includes('継続')) {
+                tomorrowPlan = '本日の作業の続きを実施予定';
+            }
+        }
+        console.log('最終的な明日の予定:', tomorrowPlan);
+        
+        // 本日の業務内容の抽出（問題点と明日の予定の部分を除く）
+        let todaysWork = text;
+        
+        // 既に抽出した問題点と明日の予定の部分を除去
+        if (issues !== '特になし' && text.includes(issues)) {
+            todaysWork = todaysWork.replace(issues, '').replace(/問題点?は/, '').replace(/問題は/, '');
+        }
+        if (tomorrowPlan !== '未記載' && text.includes(tomorrowPlan)) {
+            todaysWork = todaysWork.replace(tomorrowPlan, '').replace(/明日の業務[はに関して]*は?/, '');
+        }
+        
+        // 不要な文字を整理
+        todaysWork = todaysWork.replace(/\s+/g, ' ').trim();
+        
+        // 空になった場合や短すぎる場合は、作業キーワードを含む部分を抽出
+        if (todaysWork.length < 10) {
+            const workKeywords = ['設置', '取付', '撤去', '点検', '清掃', '修理', '試運転', '配管', '接続', '配線', '調整', '確認', '完了', '実施', '作業'];
+            const workParts = [];
+            for (const keyword of workKeywords) {
+                if (text.includes(keyword)) {
+                    const match = text.match(new RegExp(`[^。]*${keyword}[^。]*`));
+                    if (match) workParts.push(match[0]);
+                }
+            }
+            todaysWork = workParts.length > 0 ? workParts.join('。') : '未記載';
+        }
+        
+        console.log('検出された本日の業務:', todaysWork);
         
         return {
             site: siteMatch ? siteMatch[1] : '未記載',
